@@ -370,6 +370,44 @@
             font-weight: 500;
         }
 
+        /* Alternative Section */
+        .alternative-section {
+            margin-top: 20px;
+        }
+
+        .alternative-title {
+            color: var(--text);
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .alternative-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .alt-btn {
+            background: rgba(0, 255, 212, 0.1);
+            border: 1px solid rgba(0, 255, 212, 0.3);
+            color: var(--accent);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .alt-btn:hover {
+            background: rgba(0, 255, 212, 0.2);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 212, 0.2);
+        }
+
         /* Proxy Frame */
         .proxy-frame-container {
             background: rgba(15, 20, 25, 0.95);
@@ -708,6 +746,15 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="alternative-section">
+                    <h3 class="alternative-title">🚀 Alternative Access Methods</h3>
+                    <div class="alternative-buttons">
+                        <button class="alt-btn" onclick="openInNewTab()">Open in New Tab</button>
+                        <button class="alt-btn" onclick="copyUrlToClipboard()">Copy URL</button>
+                        <button class="alt-btn" onclick="showUrlInfo()">URL Info</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -815,56 +862,121 @@
             }
 
             function tryProxyMethods(url) {
+                // Show loading state
+                showLoadingState();
+                
                 // Method 1: Try direct iframe first
+                proxyIframe.onload = function() {
+                    hideLoadingState();
+                };
+                
+                proxyIframe.onerror = function() {
+                    // Method 2: Try with a different approach
+                    tryAlternativeProxy(url);
+                };
+                
                 proxyIframe.src = url;
                 
-                // Method 2: If that fails, try with a proxy service
+                // Set a timeout to check if loading is taking too long
                 setTimeout(() => {
-                    try {
+                    if (proxyIframe.contentDocument === null || 
+                        proxyIframe.contentWindow.location.href === 'about:blank' ||
+                        proxyIframe.contentWindow.location.href.includes('error') ||
+                        proxyIframe.contentWindow.location.href.includes('refused') ||
+                        proxyIframe.contentWindow.location.href.includes('blocked')) {
+                        tryAlternativeProxy(url);
+                    }
+                }, 3000);
+            }
+
+            function tryAlternativeProxy(url) {
+                // Try using a more reliable proxy approach
+                const proxyServices = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                    `https://cors-anywhere.herokuapp.com/${url}`,
+                    `https://thingproxy.freeboard.io/fetch/${url}`,
+                    `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(url)}`
+                ];
+                
+                let currentService = 0;
+                
+                function tryNextService() {
+                    if (currentService >= proxyServices.length) {
+                        showProxyError(url);
+                        return;
+                    }
+                    
+                    proxyIframe.src = proxyServices[currentService];
+                    currentService++;
+                    
+                    setTimeout(() => {
                         if (proxyIframe.contentDocument === null || 
                             proxyIframe.contentWindow.location.href === 'about:blank' ||
                             proxyIframe.contentWindow.location.href.includes('error') ||
-                            proxyIframe.contentWindow.location.href.includes('refused')) {
-                            
-                            // Try using a public proxy service
-                            const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
-                            proxyIframe.src = proxyUrl;
-                            
-                            // Method 3: If that fails, try another proxy
-                            setTimeout(() => {
-                                try {
-                                    if (proxyIframe.contentDocument === null || 
-                                        proxyIframe.contentWindow.location.href === 'about:blank' ||
-                                        proxyIframe.contentWindow.location.href.includes('error') ||
-                                        proxyIframe.contentWindow.location.href.includes('refused')) {
-                                        
-                                        // Try using allorigins proxy
-                                        const alloriginsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-                                        proxyIframe.src = alloriginsUrl;
-                                        
-                                        // Method 4: If all else fails, show error message
-                                        setTimeout(() => {
-                                            try {
-                                                if (proxyIframe.contentDocument === null || 
-                                                    proxyIframe.contentWindow.location.href === 'about:blank' ||
-                                                    proxyIframe.contentWindow.location.href.includes('error') ||
-                                                    proxyIframe.contentWindow.location.href.includes('refused')) {
-                                                    showProxyError(url);
-                                                }
-                                            } catch (e) {
-                                                showProxyError(url);
-                                            }
-                                        }, 3000);
-                                    }
-                                } catch (e) {
-                                    showProxyError(url);
-                                }
-                            }, 3000);
+                            proxyIframe.contentWindow.location.href.includes('refused') ||
+                            proxyIframe.contentWindow.location.href.includes('blocked')) {
+                            tryNextService();
+                        } else {
+                            hideLoadingState();
                         }
-                    } catch (e) {
-                        showProxyError(url);
-                    }
-                }, 2000);
+                    }, 2000);
+                }
+                
+                tryNextService();
+            }
+
+            function showLoadingState() {
+                const loadingHtml = `
+                    <div style="
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        background: linear-gradient(135deg, #0a0e1a 0%, #0f1419 100%);
+                        color: #e8f4f8;
+                        font-family: 'Inter', sans-serif;
+                        text-align: center;
+                        padding: 40px;
+                    ">
+                        <div style="font-size: 48px; margin-bottom: 20px; animation: spin 2s linear infinite;">🌊</div>
+                        <h2 style="color: #00d4ff; margin-bottom: 15px; font-size: 24px;">Neptune is Diving Deep...</h2>
+                        <p style="color: #7a8b9a; margin-bottom: 20px; line-height: 1.6;">
+                            Connecting through the digital depths<br>
+                            Please wait while we establish a secure tunnel
+                        </p>
+                        <div style="
+                            width: 200px;
+                            height: 4px;
+                            background: rgba(0, 212, 255, 0.2);
+                            border-radius: 2px;
+                            overflow: hidden;
+                            margin-top: 20px;
+                        ">
+                            <div style="
+                                width: 100%;
+                                height: 100%;
+                                background: linear-gradient(90deg, #00d4ff, #00ffd4);
+                                animation: loading 2s ease-in-out infinite;
+                            "></div>
+                        </div>
+                    </div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        @keyframes loading {
+                            0% { transform: translateX(-100%); }
+                            100% { transform: translateX(100%); }
+                        }
+                    </style>
+                `;
+                proxyIframe.srcdoc = loadingHtml;
+            }
+
+            function hideLoadingState() {
+                // Loading state will be replaced when the actual content loads
             }
 
             function showProxyError(url) {
@@ -887,7 +999,7 @@
                             Neptune couldn't connect to <strong>${url}</strong><br>
                             This site may block proxy access or require special permissions.
                         </p>
-                        <div style="display: flex; gap: 15px; margin-top: 20px;">
+                        <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center;">
                             <button onclick="window.open('${url}', '_blank')" style="
                                 background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
                                 border: none;
@@ -896,7 +1008,18 @@
                                 border-radius: 8px;
                                 cursor: pointer;
                                 font-weight: 600;
-                            ">Open Directly</button>
+                                transition: transform 0.3s ease;
+                            " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Open Directly</button>
+                            <button onclick="tryAlternativeProxy('${url}')" style="
+                                background: linear-gradient(135deg, #00ffd4 0%, #00ccaa 100%);
+                                border: none;
+                                color: white;
+                                padding: 12px 24px;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                transition: transform 0.3s ease;
+                            " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Try Again</button>
                             <button onclick="document.getElementById('proxyFrame').style.display='none'" style="
                                 background: rgba(255, 0, 0, 0.1);
                                 border: 1px solid rgba(255, 0, 0, 0.3);
@@ -905,15 +1028,16 @@
                                 border-radius: 8px;
                                 cursor: pointer;
                                 font-weight: 600;
-                            ">Close</button>
+                                transition: transform 0.3s ease;
+                            " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Close</button>
                         </div>
                         <div style="margin-top: 30px; padding: 20px; background: rgba(0, 212, 255, 0.1); border-radius: 10px; border: 1px solid rgba(0, 212, 255, 0.2);">
                             <h3 style="color: #00d4ff; margin-bottom: 10px;">Alternative Solutions:</h3>
                             <ul style="color: #7a8b9a; text-align: left; line-height: 1.8;">
-                                <li>Try opening the site directly in a new tab</li>
-                                <li>Some sites block proxy access for security</li>
+                                <li>Click "Open Directly" to bypass proxy restrictions</li>
+                                <li>Some sites block proxy access for security reasons</li>
                                 <li>Use a VPN for better privacy protection</li>
-                                <li>Try different proxy services if available</li>
+                                <li>Try the "Try Again" button to retry with different proxy services</li>
                             </ul>
                         </div>
                     </div>
@@ -990,6 +1114,148 @@
             // Focus URL input on page load
             urlInput.focus();
         });
+
+        // Alternative access methods
+        function openInNewTab() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (url) {
+                let fullUrl = url;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    fullUrl = 'https://' + url;
+                }
+                window.open(fullUrl, '_blank');
+            } else {
+                alert('Please enter a URL first');
+            }
+        }
+
+        function copyUrlToClipboard() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (url) {
+                let fullUrl = url;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    fullUrl = 'https://' + url;
+                }
+                navigator.clipboard.writeText(fullUrl).then(() => {
+                    showNotification('URL copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = fullUrl;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showNotification('URL copied to clipboard!');
+                });
+            } else {
+                alert('Please enter a URL first');
+            }
+        }
+
+        function showUrlInfo() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (url) {
+                let fullUrl = url;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    fullUrl = 'https://' + url;
+                }
+                
+                const urlInfo = `
+                    <div style="
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        background: linear-gradient(135deg, #0a0e1a 0%, #0f1419 100%);
+                        color: #e8f4f8;
+                        font-family: 'Inter', sans-serif;
+                        text-align: center;
+                        padding: 40px;
+                    ">
+                        <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                        <h2 style="color: #00d4ff; margin-bottom: 15px; font-size: 24px;">URL Information</h2>
+                        <div style="
+                            background: rgba(0, 212, 255, 0.1);
+                            border: 1px solid rgba(0, 212, 255, 0.3);
+                            border-radius: 10px;
+                            padding: 20px;
+                            margin: 20px 0;
+                            text-align: left;
+                        ">
+                            <p style="color: #7a8b9a; margin-bottom: 10px;"><strong>Full URL:</strong></p>
+                            <p style="color: #00d4ff; word-break: break-all; margin-bottom: 15px;">${fullUrl}</p>
+                            <p style="color: #7a8b9a; margin-bottom: 10px;"><strong>Domain:</strong></p>
+                            <p style="color: #00ffd4;">${new URL(fullUrl).hostname}</p>
+                        </div>
+                        <div style="display: flex; gap: 15px; margin-top: 20px;">
+                            <button onclick="window.open('${fullUrl}', '_blank')" style="
+                                background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+                                border: none;
+                                color: white;
+                                padding: 12px 24px;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-weight: 600;
+                            ">Open Directly</button>
+                            <button onclick="document.getElementById('proxyFrame').style.display='none'" style="
+                                background: rgba(255, 0, 0, 0.1);
+                                border: 1px solid rgba(255, 0, 0, 0.3);
+                                color: #ff6b6b;
+                                padding: 12px 24px;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-weight: 600;
+                            ">Close</button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('proxyIframe').srcdoc = urlInfo;
+                document.getElementById('proxyFrame').style.display = 'block';
+            } else {
+                alert('Please enter a URL first');
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Add CSS for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
